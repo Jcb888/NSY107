@@ -48,6 +48,7 @@ RTTASK idTDialogue, idtDureePeriodesEtInfosCourbes, idtGererLoiConsigne;
 RTSEM idSemDebut, idSemPL;
 
 /* semaphores d'exclusion mutuelle */
+
 RTMUTEX idMutexCAN; 
 
 /* Identificateurs des files */
@@ -171,17 +172,18 @@ void miseAJourparametresExperimentation(float tableauReels[]){
 	rt_printf("parametres experimentation: d %d , pl %d, pe %d \n", parametresExperimentation.duree, parametresExperimentation.periodeActivationLoi, parametresExperimentation.periodeLectureCapteurs);
 }
 
-void DisplayInfoTask(void)
-RT_TASK tid;
-RTTASK_INFO InfosTache;
-int cr;
-cr = rt_task_inguire(rt_task_self(), &InfosTache);
-if (cr == 0){
-	rt_printf("Nom Tache : %s, Priorite : %d, texec MP %d \n", InfosTache.name, InfosTache.bprio, InfosTache.exectime);
-	rt_printf("Commutations : %d , Mode : %x\n", InfosTache.modeswitches, InfosTache.status);
-}
-else{
-	rt_printf("Erreur de lecture de 1 etat de la tache (numero %d )\n", cr);
+void DisplayInfoTask(void){
+	RT_TASK tid;
+	RTTASK_INFO InfosTache;
+	int cr;
+	cr = rt_task_inguire(rt_task_self(), &InfosTache);
+	if (cr == 0){
+		rt_printf("Nom Tache : %s, Priorite : %d, texec MP %d \n", InfosTache.name, InfosTache.bprio, InfosTache.exectime);
+		rt_printf("Commutations : %d , Mode : %x\n", InfosTache.modeswitches, InfosTache.status);
+	}
+	else{
+		rt_printf("Erreur de lecture de 1 etat de la tache (numero %d )\n", cr);
+	}
 }
 /*******************************************************************************
 *
@@ -275,10 +277,18 @@ void tGererLoiConsigne(){
 				
 				case 11 { // voir cahier des charges page 8
 					
-					// param experimentation MAJ ds miseAJourparametresExperimentation()
-					cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)*parametresExperimentation.coeffLoi[2];
-					rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n", parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
-					
+					if (parametresExperimentation.option == 0){// 0 : fermée
+						// param experimentation MAJ ds miseAJourparametresExperimentation()
+						cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)*parametresExperimentation.coeffLoi[2];
+						rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n", parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
+					}
+					if (parametresExperimentation.option == 1){// 1 : voisinage RP
+						// param experimentation MAJ ds miseAJourparametresExperimentation()
+						cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)*parametresExperimentation.coeffLoi[2];
+						rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n", parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
+					}
+
+
 				}break;
 				
 				default : rt_printf("type loi non reconnue \n");
@@ -398,8 +408,9 @@ void tDialogue(){
 	} /*fin for (;;) */
 }/*fin tDialogue*/
 
-void catch_signal(int sig)
-printf(" Signal = %d\n", sig);
+void catch_signal(int sig){
+	printf(" Signal = %d\n", sig);
+}
 /*******************************************************************************
 *
 * main()
