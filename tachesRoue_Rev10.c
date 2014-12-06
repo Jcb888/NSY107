@@ -115,37 +115,43 @@ void envoyerDernierBlocEchantillons(){
 	//on interroge la file pour connaitre le nb d'echantillons
 	if (rt_queue_inquire(&idFileEchantillonsCourbes, &queueInfo) != 0)
 		rt_printf("erreur interrogation file")
+
+		//if (queueInfo.nmessages){//si file = 0 que fait'on
+		// on envoit un tableau vide ou en envoit rien ?
+		// et si on envoit rien risque t'on atteindre le DL
 	
-	//if (queueInfo.nmessages){// s'il n'y a pas de message ? cas possible ?
-		//on peut initialiser le tableau à la bonne taille.
-		float tabCapteurs[queueInfo.nmessages];
+				//on peut initialiser le tableau à la bonne taille.
+				float tabCapteurs[queueInfo.nmessages];
 
-		//il faut maintenant remplir le tableau
+				//il faut maintenant remplir le tableau
 
-		for (i = 0; i < queueInfo.nmessages; i++){
+				for (i = 0; i < queueInfo.nmessages; i++){
 
-			// on recupere un echantillon (ou le suivant) dans la file
-			if (rt_queue_read(&idFileEchantillonsCourbes, &echantillon, sizeof(echantillon), TM_NONBLOCK) != 0)
-				rt_printf("erreur lecture file");
+					// on recupere un echantillon (ou le suivant) dans la file
+					if (rt_queue_read(&idFileEchantillonsCourbes, &echantillon, sizeof(echantillon), TM_NONBLOCK) != 0)
+						rt_printf("erreur lecture file");
 
-			acquisitionEchantillon(&echantillon);
-			//on remplit le tableau par bloc de 4 en incrementant de  l'indice
-			// a chaque boucle
-			tabCapteurs[4 * i + 0] = echantillon.vitesseMoteur;
-			tabCapteurs[4 * i + 1] = echantillon.vitessePlateau;
-			tabCapteurs[4 * i + 2] = echantillon.positionPlateau;
-			tabCapteurs[4 * i + 3] = echantillon.courantMoteur;
-		}// fin for le tableau d'echantillons est remplit
+					acquisitionEchantillon(&echantillon);
+					//on remplit le tableau par bloc de 4 en incrementant de  l'indice
+					// a chaque boucle
+					tabCapteurs[4 * i + 0] = echantillon.vitesseMoteur;
+					tabCapteurs[4 * i + 1] = echantillon.vitessePlateau;
+					tabCapteurs[4 * i + 2] = echantillon.positionPlateau;
+					tabCapteurs[4 * i + 3] = echantillon.courantMoteur;
+				}// fin for le tableau d'echantillons est remplit
 
-		//il faut gerer ici le cas experimentation termine
-		if (termine){
-			ecrireTableauReels('F', tabCapteurs, queueInfo.nmessages * 4);
-		}
-		else{
-			ecrireTableauReels('S', tabCapteurs, queueInfo.nmessages * 4)
-		}
+		
 
-	//}//fin si if (queueInfo.nmessages)// si 0 que renvoit'on ?
+				//on gere ici le cas experimentation termine
+				if (termine){
+					ecrireTableauReels('F', tabCapteurs, queueInfo.nmessages * 4);
+				}
+				else{
+					ecrireTableauReels('S', tabCapteurs, queueInfo.nmessages * 4)
+				}
+
+		//}fin if (queueInfo.nmessages)
+
 }
 
 
@@ -169,7 +175,8 @@ void miseAJourparametresExperimentation(float tableauReels[]){
 		parametresExperimentation.coeffLoi[i] = tableauReels[8 + i];
 	}
 
-	rt_printf("parametres experimentation: d %d , pl %d, pe %d \n", parametresExperimentation.duree, parametresExperimentation.periodeActivationLoi, parametresExperimentation.periodeLectureCapteurs);
+	rt_printf("parametres experimentation: d %d , pl %d, pe %d \n", parametresExperimentation.duree, parametresExperimentation.periodeActivationLoi,
+																	parametresExperimentation.periodeLectureCapteurs);
 }
 
 void DisplayInfoTask(void){
@@ -246,7 +253,7 @@ void tDureePeriodesEtInfosCourbes(){//alias T2
 	}//fin for(;;)
 }// fin tDureePeriodesEtInfosCourbes()
 
-void tGererLoiConsigne(){
+void tGererLoiConsigne(){// allias T3
 
 	for (;;){// boucle infini pour que la tache existe
 		// sem_p destine a l'initialisation lors du premier passage (ou nouvelle phase)
@@ -272,21 +279,32 @@ void tGererLoiConsigne(){
 					//ToDo prise en compte option loi
 					cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)*2.0) - echantillon.vitessePlateau)*2.0;
 					rt_printf("valeur type loi : %d  valeur cde: %f \n",parametresExperimentation.loi,  cde);
+					rt_printf("valeur finconsigne : %f  valeur positionPlateau: %f valeur vitessePlateau: %f \n", parametresExperimentation.valFinConsigne, echantillon.positionPlateau, echantillon.vitessePlateau);
 					
 				}break;
 				
-				case 11 { // voir cahier des charges page 8
+				case 11 { // voir cahier des charges page 8 ?? consigne en Radian --> ?? conversion en amperes ??
 					
 					if (parametresExperimentation.option == 0){// 0 : fermée
 						// param experimentation MAJ ds miseAJourparametresExperimentation()
-						cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)*parametresExperimentation.coeffLoi[2];
-						rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n", parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
+						cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)
+								*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)
+								*parametresExperimentation.coeffLoi[2];
+
+						rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n",
+								parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
 					}
 					if (parametresExperimentation.option == 1){// 1 : voisinage RP
 						// param experimentation MAJ ds miseAJourparametresExperimentation()
-						cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)*parametresExperimentation.coeffLoi[2];
-						rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n", parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
+						cde = (((parametresExperimentation.valFinConsigne - echantillon.positionPlateau)
+							*parametresExperimentation.coeffLoi[1]) - echantillon.vitessePlateau)
+							*parametresExperimentation.coeffLoi[2];
+
+						rt_printf("valeur type loi : %d  coef kp : %f coef kv : %f valeur cde: %f \n",
+							parametresExperimentation.loi, parametresExperimentation.coeffLoi[1], parametresExperimentation.coeffLoi[1], cde);
 					}
+
+					// ? gerer parametresExperimentation.option non reconnue ?
 
 
 				}break;
@@ -354,7 +372,7 @@ void tDialogue(){
 								{
 								//arret est scrute par T2 tt le 1 ms
 								arret = 1;
-								clientConnecte = 0; // utile souhaitable ? pour avertir autres taches
+								//clientConnecte = 0; // utile souhaitable ? pour avertir autres taches
 								ecrireCaractere(MESS_ACK);
 								} break;
 
@@ -404,6 +422,7 @@ void tDialogue(){
 		} /* fin du while erreur==0 */
 
 	fermetureSocket();
+	clientConnecte = 0;
 	rt_printf(" port %d ferme \n", numeroPort);
 	} /*fin for (;;) */
 }/*fin tDialogue*/
