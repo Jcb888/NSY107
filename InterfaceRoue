@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+INTERFACE_ROUE_HOME=/DISTRIBLIA/InterfaceRoue
+export INTERFACE_ROUE_HOME
+PATH=$PATH:$INTERFACE_ROUE_HOME
+export PATH
+cd $INTERFACE_ROUE_HOME
+./projRoue2 &
+cd $HOME
+
+
