@@ -1,17 +1,17 @@
-/﻿/****************************************************************
-//	SUPAERO							
-//																
-//	Application roue a reaction				
-//	Os = linux+xenomai											
-// Jean-Christophe BILLARD - Jerome LEBORGNE - Hugo TOURAINE	
-//																
-//	tachesRoue.c												
-//
-//rev 15 
-//Do  , option loi, boucle test consigne à activer ligne 306
-//ToDo profil consigne
-//	
-//***************************************************************
+/****************************************************************
+	SUPAERO							
+																
+	Application roue a reaction				
+	Os = linux+xenomai											
+ Jean-Christophe BILLARD - Jerome LEBORGNE - Hugo TOURAINE	
+																
+	tachesRoue.c												
+
+rev 15 
+Do test et stats temporeles, option loi  boucle consigne a activer ligne 306
+ToDo profil consigne, loi de commande fonctionnel
+	
+***************************************************************/
 
 /* Includes */
 #include <math.h>
@@ -104,7 +104,7 @@ void envoyerDernierBlocEchantillons(){
 	TypeEchantillon echantillon;
 	float blocCapteurs[200];//50*4 ou queueInfo.nmessages * 4
 	//on interroge la file pour connaitre le nb d'echantillons
-	if (rt_queue_inquire(&idFileEchantillonsCourbes, &queueInfo) != 0)
+	if (rt_queue_inquire(&idFileEchantillonsCourbes, &queueInfo)
 		rt_printf("erreur interrogation file");
 		
 				//on peut initialiser le tableau à la bonne taille.
@@ -165,7 +165,7 @@ void DisplayInfoTask(void){
 	RT_TASK_INFO InfosTache; 
 	int cr;
 	cr = rt_task_inquire(rt_task_self(), &InfosTache);
-	if (cr == 0){
+	if (cr == 0){//si inquire OK on affiche les stats de la tache.
 		rt_printf("Nom Tache : %s, Priorite : %d, texec MP %d \n", InfosTache.name, InfosTache.bprio, InfosTache.exectime);
 		rt_printf("Commutations : %d , Mode : %x\n", InfosTache.modeswitches, InfosTache.status);
 	}
@@ -287,8 +287,8 @@ void tGererLoiConsigne(){// allias T2
 		// sem_p destine a l'initialisation lors du premier passage (ou nouvelle phase)
 		int retour = rt_sem_p(&idSemPL, TM_INFINITE);
 		rt_printf("code retour rt_sem_p: %d \n", retour);
-		RTIME debutExec = 0;
-		RTIME finExec = 0;
+		RTIME debutExec = 0;//pour mesure tpd exec
+		RTIME finExec = 0;//pour mesure tps exec
 		float cde = 0.0;
 		TypeEchantillon echantillon;
 			
@@ -355,23 +355,24 @@ void tGererLoiConsigne(){// allias T2
 
 				}break;
 				
-				default : rt_printf("type loi non reconnue \n");
-				break;			
+				default:{ rt_printf("type loi non reconnue \n");
+				}break;
+							
 			
 			}// fin switch (parametresExperimentation.loi)*/
 			
-			applicationIConsigne(cde); // INSERER cde qd mise au point ok
+			applicationIConsigne(cde); 
 
 			//sem_p pour mise en veille lors de la fin premiers passage
-			// puis des suivants (activation par sem_v de T2)
+			// puis des suivants (activation par sem_v de Gerer duree et periodes)
 
-			finExec = rt_timer_read();
-			if (debutExec != 0)
+			finExec = rt_timer_read();// fin mesure tps exec tache
+			if (debutExec != 0)//si on est pas sur la premiere boucle affichage du tps d'execution de la tache
 				rt_printf("temps depuis la derniere activation: %ld.%06ld ms\n", (long)(finExec - debutExec) / 1000000, (long)(finExec - debutExec) % 1000000);
 			//on attend la prochaine activation
 			retour = rt_sem_p(&idSemPL, TM_INFINITE);
 			
-			debutExec = rt_timer_read();
+			debutExec = rt_timer_read();//on commence la mesure du temps d'exec
 			rt_printf("code retour rt_sem_p: %d \n", retour);
 
 		}//fin while (termine == 0)
@@ -410,13 +411,13 @@ void tDialogue(){ // alias T3
 		/* boucle de lecture des requetes */
 		rt_printf(" connexion Active \n");
 		while (erreur == 0) {
-			// a verifer, le socket est il bloquant
+			// a verifer, le socket est il bloquant --> recv() par default == oui
 			
-			finExec = rt_timer_read();
-			if (debutExec != 0)
+			finExec = rt_timer_read();// Mesure fin exec
+			if (debutExec != 0)// On l'affiche si pas premier passage
 				rt_printf("Time since last turn: %ld.%06ld ms\n", (long)(finExec - debutExec) / 1000000, (long)(finExec - debutExec) % 1000000);
-			typeMessage = lectureMessage();// bloque en attente message ?
-			debutExec = rt_timer_read();
+			typeMessage = lectureMessage();// bloque en attente message cmd station sol
+			debutExec = rt_timer_read();//Message recu on commence la mesure du temps d'exec
 
 				if (typeMessage < 0) { /* erreur de lecture socket */
 					printf(" erreur de lecture socket\n");
